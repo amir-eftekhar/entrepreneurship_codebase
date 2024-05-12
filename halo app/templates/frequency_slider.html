@@ -1,0 +1,16 @@
+<!-- templates/frequency_slider.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-4">Frequency Slider</h2>
+    <input type="range" min="20" max="20000" value="1000" class="w-full" id="frequencyRange">
+    <p class="mt-4">Frequency: <span id="frequencyValue">1000</span> Hz</p>
+</div>
+<script>
+    const rangeInput = document.getElementById('frequencyRange');
+    const valueDisplay = document.getElementById('frequencyValue');
+    rangeInput.addEventListener('input', function() {
+        valueDisplay.textContent = rangeInput.value;
+    });
+</script>
+{% endblock %}
