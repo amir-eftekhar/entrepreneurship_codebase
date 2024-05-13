@@ -1,114 +1,139 @@
-'''import cv2
-import numpy as np
-import threading
-import queue
-import subprocess
-import tensorflow as tf
-
-# Load TFLite model and allocate tensors
-interpreter = tf.lite.Interpreter(model_path="path_to_tflite_model.tflite")
-interpreter.allocate_tensors()
-
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
-
-def detect_objects(frame):
-    # Preprocess the image to required size and convert to tensor
-    frame_resized = cv2.resize(frame, (input_details[0]['shape'][2], input_details[0]['shape'][1]))
-    input_data = np.expand_dims(frame_resized, axis=0)
-    input_data = (np.float32(input_data) - 127.5) / 127.5
-
-    # Perform the actual detection by running the model with the image as input
-    interpreter.set_tensor(input_details[0]['index'], input_data)
-    interpreter.invoke()
-
-        # Retrieve detection results
-    boxes = interpreter.get_tensor(output_details[0]['index'])[0]  # Bounding box coordinates of detected objects
-    classes = interpreter.get_tensor(output_details[1]['index'])[0]  # Class index of detected objects
-    scores = interpreter.get_tensor(output_details[2]['index'])[0]  # Confidence of detected objects
-
-    # Process detection results
-    for i in range(len(scores)):
-        if scores[i] > 0.5:  # Filter out detections with a confidence less than 50%
-            ymin, xmin, ymax, xmax = boxes[i]
-            class_id = int(classes[i])
-            confidence = scores[i]
-
-            # Calculate the center of the detected object
-            center_x = (xmin + xmax) / 2
-            center_y = (ymin + ymax) / 2
-
-            # Example to determine the direction relative to the center of the frame
-            frame_center_x = frame.shape[1] / 2
-            direction = "left" if center_x < frame_center_x else "right"
-
-            # Generate voice feedback based on object location
-            object_name = "object"  # Placeholder: replace with actual class name lookup if available
-            voice_feedback = f"{object_name} detected {direction}, {int(confidence * 100)}% confidence"
-
-            # Here, integrate with your voice assistant or output system
-            print(voice_feedback)  # Placeholder for actual voice feedback implementation
-
-    # Continue to the next part of the application
-    return frame
-'''
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import tensorflow_hub as hub
-import numpy as np
-import tensorflow as tf
 import cv2
+import numpy as np
+import subprocess
+from threading import Thread, Lock
+from queue import Queue
+import signal
+import time
+def start_camera_stream():
+    # This function should set up your camera stream as before
+    cmd = 'libcamera-vid -t 0 --inline --codec yuv420 --width 640 --height 480 --nopreview -o -'
+    return subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, bufsize=640*480*3)
+
+def read_frame_from_camera(process):
+    # Function to read frames from the camera process
+    frame_data = process.stdout.read(640*480*3)
+    if not frame_data:
+        return None
+    frame = np.frombuffer(frame_data, dtype=np.uint8).reshape((480, 640, 3))
+    return frame
+
+class FrameReader(Thread):
+    def __init__(self, process):
+        super().__init__()
+        self.process = process
+        self.queue = Queue(maxsize=1)
+        self.active = True
+
+    def run(self):
+        while self.active:
+            frame = read_frame_from_camera(self.process)
+            if frame is None:
+                self.active = False
+                break
+            if self.queue.full():
+                self.queue.get()
+            self.queue.put(frame)
+
+    def get_frame(self):
+        return self.queue.get() if not self.queue.empty() else None
+
+    def stop(self):
+        self.active = False
+
+class DetectionThread(Thread):
+    def __init__(self, input_queue, output_queue):
+        super().__init__()
+        self.input_queue = input_queue
+        self.output_queue = output_queue
+        self.net = cv2.dnn.readNet("yolov3-tiny.weights", "yolov3-tiny.cfg")
+        self.layer_names = self.net.getLayerNames()
+        
+        out_layer_indices = self.net.getUnconnectedOutLayers()
+        # Check if the indices are wrapped in another array
+        if out_layer_indices.ndim == 1:
+            self.output_layers = [self.layer_names[i - 1] for i in out_layer_indices.flatten()]
+        else:
+            self.output_layers = [self.layer_names[i[0] - 1] for i in out_layer_indices]
+
+    def run(self):
+        while True:
+            img = self.input_queue.get()
+            if img is None:
+                break
+            blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+            self.net.setInput(blob)
+            outs = self.net.forward(self.output_layers)
+            self.output_queue.put((img, outs))
+
+    def stop(self):
+        self.active = False
+
+def main():
+    process = start_camera_stream()
+    frame_reader = FrameReader(process)
+    frame_reader.start()
+
+    frame_queue = Queue(maxsize=1)  # Keep queue size to 1
+    detections_queue = Queue(maxsize=1)  # Keep queue size to 1
+
+    detector = DetectionThread(frame_queue, detections_queue)
+    detector.start()
+
+    last_display_time = 0
+    display_interval = 0.5  # Set a display interval (in seconds)
+
+    try:
+        while True:
+            frame = frame_reader.get_frame()
+            if frame is not None:
+                # Clear the queue if not empty to only keep the most recent frame
+                while not frame_queue.empty():
+                    frame_queue.get_nowait()
+
+                frame_queue.put(frame)
+
+                # Process detections
+                if not detections_queue.empty():
+                    display_frame, detections = detections_queue.get_nowait()
+
+                    # Display the frame at defined intervals to manage display rate
+                    if time.time() - last_display_time > display_interval:
+                        last_display_time = time.time()
+                        if display_frame is not None:
+                            for out in detections:
+                                for detection in out:
+                                    scores = detection[5:]
+                                    class_id = np.argmax(scores)
+                                    confidence = scores[class_id]
+                                    if confidence > 0.5:
+                                        center_x = int(detection[0] * display_frame.shape[1])
+                                        center_y = int(detection[1] * display_frame.shape[0])
+                                        w = int(detection[2] * display_frame.shape[1])
+                                        h = int(detection[3] * display_frame.shape[0])
+                                        x = int(center_x - w / 2)
+                                        y = int(center_y - h / 2)
+                                        cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                            cv2.imshow('Object Detector', display_frame)
+                            if cv2.waitKey(1) == ord('q'):
+                                break
+    finally:
+        frame_reader.stop()
+        detector.stop()
+        process.stdout.close()
+        process.terminate()
+        process.wait()
+        cv2.destroyAllWindows()
 
 
-detector = hub.load("https://tfhub.dev/tensorflow/ssd_mobilenet_v2/2")
-
-def load_prep_image(image_path):
-    img = tf.io.read_file(image_path)
-    img = tf.image.decode_image(img, channels=3)
-    img = tf.image.resize(img, [640, 480])
-    img = tf.image.convert_image_dtype(img, tf.uint8)  # Move conversion here
-    img = img[tf.newaxis, :]
-    return img
-
-def detect_objects(image_path):
-    img = load_prep_image(image_path)
-    detector_output = detector(img)
-    result = {key:value.numpy() for key,value in detector_output.items()}
-    return result
-def draw_boxes_cv2(image_path, detection_results):
-    # Load the image using cv2
-    img = cv2.imread(image_path)
-
-    # Get the detection boxes, classes, and scores
-    boxes = detection_results['detection_boxes'][0]
-    classes = detection_results['detection_classes'][0]
-    scores = detection_results['detection_scores'][0]
-
-    # For each box
-    for i in range(len(boxes)):
-        # If the detection score is above a threshold
-        if scores[i] > 0.5:
-            # Get the box coordinates and scale them to the image size
-            ymin, xmin, ymax, xmax = boxes[i]
-            xmin, ymin, xmax, ymax = int(xmin * 480), int(ymin * 640), int(xmax * 480), int(ymax * 640)
-
-            # Draw the bounding box
-            cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
-
-            # Draw the label
-            label = f'Class: {classes[i]}, Score: {scores[i]}'
-            cv2.putText(img, label, (xmin, ymin-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
-
-    # Display the image
-    cv2.imshow('Image', img)
-    cv2.waitKey(0)
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    frame_reader.stop()
+    detector.stop()
+    process.terminate()
     cv2.destroyAllWindows()
-    
+    sys.exit(0)
 
-# Example usage
-image_path = 'photo.jpg'
-detection_results = detect_objects(image_path)
-print(detection_results)
-draw_boxes_cv2(image_path, detection_results)
-
+if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal_handler)
+    main()

@@ -1,13 +1,12 @@
 import cv2
 import numpy as np
-from adjustv import read_frames
+from adjustv import read_frames  # Ensure this module properly provides frames
 
 def main():
     cv2.namedWindow("Depth Map", cv2.WINDOW_NORMAL)
 
     # Create StereoBM object with optimized settings
     stereo = cv2.StereoBM_create(numDisparities=16*2, blockSize=21)
-    
 
     try:
         for frame in read_frames():
@@ -22,18 +21,25 @@ def main():
             left_gray = gray_frame[:, :width_cutoff]
             right_gray = gray_frame[:, width_cutoff:]
 
-            # Ensure left and right images are correctly processed
-            print(f"Left gray shape: {left_gray.shape}, Right gray shape: {right_gray.shape}")
-
             # Compute disparity map
             disparity = stereo.compute(left_gray, right_gray)
-            print(f"Disparity shape: {disparity.shape}")
 
             # Normalize the disparity map
             disparity_normalized = cv2.normalize(disparity, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
 
             # Color mapping
             disparity_color = cv2.applyColorMap(disparity_normalized, cv2.COLORMAP_JET)
+
+            # Calculate and print depth information, ignoring the left 1/4th
+            three_fourths_width_start = disparity_color.shape[1] // 4
+            segments = {
+                'Center': disparity_color[:, three_fourths_width_start:3*disparity_color.shape[1]//4],
+                'Right': disparity_color[:, 3*disparity_color.shape[1]//4:]
+            }
+
+            for name, segment in segments.items():
+                average_depth = np.mean(segment)
+                print(f"{name} Segment Average Depth: {average_depth:.2f}")
 
             # Display the depth map
             cv2.imshow("Depth Map", disparity_color)
