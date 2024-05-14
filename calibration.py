@@ -1,21 +1,57 @@
 import cv2
 import numpy as np
 
-# Assume 'objpoints' and 'imgpoints' are filled from the detected chessboard corners
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray_frame.shape[::-1], None, None)
+def load_and_split_image(image_path):
+    # Load the full stereo image
+    full_image = cv2.imread(image_path)
+    # Assuming the image is split vertically down the middle
+    height, width, _ = full_image.shape
+    left_img = full_image[:, :width//2]
+    right_img = full_image[:, width//2:]
+    return left_img, right_img
 
-# Stereo calibration
-stereo_ret, cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2, R, T, E, F = cv2.stereoCalibrate(
-    objpoints, imgpoints1, imgpoints2, mtx, dist, mtx, dist, gray_frame.shape[::-1])
+def preprocess_image(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Apply histogram equalization to improve contrast
+    gray = cv2.equalizeHist(gray)
+    # Apply Gaussian blur to reduce noise
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    return gray
 
-# Stereo rectification
-R1, R2, P1, P2, Q, validPixROI1, validPixROI2 = cv2.stereoRectify(
-    cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2, gray_frame.shape[::-1], R, T)
+def find_and_draw_corners(image, chessboard_size=(10, 10)):
+    gray = preprocess_image(image)
+    # Find the chessboard corners with adjusted parameters
+    ret, corners = cv2.findChessboardCorners(gray, chessboard_size, 
+                                             cv2.CALIB_CB_ADAPTIVE_THRESH + 
+                                             cv2.CALIB_CB_NORMALIZE_IMAGE + 
+                                             cv2.CALIB_CB_FAST_CHECK)
+    # If found, refine corners and draw them
+    if ret:
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+        corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+        cv2.drawChessboardCorners(image, chessboard_size, corners, ret)
+    return image, ret, corners
 
-# Compute the maps for remapping the camera views
-map1x, map1y = cv2.initUndistortRectifyMap(cameraMatrix1, distCoeffs1, R1, P1, gray_frame.shape[::-1], cv2.CV_16SC2)
-map2x, map2y = cv2.initUndistortRectifyMap(cameraMatrix2, distCoeffs2, R2, P2, gray_frame.shape[::-1], cv2.CV_16SC2)
+def main():
+    chessboard_size = (10, 10)  # Define the number of inner corners per a chessboard row and column
+    left_img, right_img = load_and_split_image("calibration/checkerboard3.jpg")  
 
-# Remap the images
-rectified_img1 = cv2.remap(img1, map1x, map1y, cv2.INTER_LINEAR)
-rectified_img2 = cv2.remap(img2, map2x, map2y, cv2.INTER_LINEAR)
+    # Show the original images
+    cv2.imshow('Original Left Image', left_img)
+    cv2.imshow('Original Right Image', right_img)
+
+    left_img_with_corners, retL, cornersL = find_and_draw_corners(left_img, chessboard_size)
+    right_img_with_corners, retR, cornersR = find_and_draw_corners(right_img, chessboard_size)
+
+    # Show the images with corners drawn
+    if retL and retR:
+        cv2.imshow('Left Image with Corners', left_img_with_corners)
+        cv2.imshow('Right Image with Corners', right_img_with_corners)
+    else:
+        print("Chessboard corners not found in one or both images.")
+    
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
