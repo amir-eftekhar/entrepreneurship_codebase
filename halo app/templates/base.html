@@ -1,0 +1,30 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Map App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.0.2/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-blue-600 p-4">
+        <div class="container mx-auto">
+            <a href="{{ url_for('home') }}" class="text-white text-lg">Home</a>
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('upload_image') }}" class="text-white text-lg ml-4">Upload Image</a>
+                <a href="{{ url_for('frequency_slider') }}" class="text-white text-lg ml-4">Frequency Slider</a>
+                <a href="{{ url_for('chatbot') }}" class="text-white text-lg ml-4">Chatbot</a>
+                <a href="{{ url_for('logout') }}" class="text-white text-lg ml-4">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}" class="text-white text-lg ml-4">Login</a>
+                <a href="{{ url_for('register') }}" class="text-white text-lg ml-4">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+    <div class="container mx-auto mt-10">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html>

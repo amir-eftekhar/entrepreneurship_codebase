@@ -1,0 +1,14 @@
+<!-- templates/chatbot.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-4">Chatbot</h2>
+    <form action="{{ url_for('chatbot') }}" method="post">
+        <div class="mb-4">
+            <label for="concern" class="block text-gray-700">How can we help you?</label>
+            <textarea name="concern" id="concern" rows="4" class="w-full border-gray-300 rounded-md"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md">Submit</button>
+    </form>
+</div>
+{% endblock %}
