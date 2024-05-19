@@ -20,6 +20,7 @@ def preprocess_image(image):
 
 def find_and_draw_corners(image, chessboard_size=(10, 10)):
     gray = preprocess_image(image)
+
     # Find the chessboard corners with adjusted parameters
     ret, corners = cv2.findChessboardCorners(gray, chessboard_size, 
                                              cv2.CALIB_CB_ADAPTIVE_THRESH + 
@@ -34,7 +35,7 @@ def find_and_draw_corners(image, chessboard_size=(10, 10)):
 
 def main():
     chessboard_size = (10, 10)  # Define the number of inner corners per a chessboard row and column
-    left_img, right_img = load_and_split_image("calibration/checkerboard3.jpg")  
+    left_img, right_img = load_and_split_image("better_image3.jpg")  
 
     # Show the original images
     cv2.imshow('Original Left Image', left_img)
