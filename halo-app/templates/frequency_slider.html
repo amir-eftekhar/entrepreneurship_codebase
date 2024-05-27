@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-4">Frequency Sliders</h2>
+    
+    <div id="slidersContainer">
+        <!-- Sliders will be added here dynamically -->
+    </div>
+    
+    <button id="addSliderButton" class="mt-4 bg-blue-600 text-white p-2 rounded">Add Frequency</button>
+</div>
+
+<script>
+    let sliderCount = 0;
+
+    function createSliderElement(name, value) {
+        const sliderContainer = document.createElement('div');
+        sliderContainer.classList.add('mb-4', 'slider-container');
+        
+        const nameLabel = document.createElement('label');
+        nameLabel.classList.add('block', 'text-gray-700');
+        nameLabel.textContent = 'Frequency Name:';
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = name || `Frequency ${sliderCount + 1}`;
+        nameInput.classList.add('w-full', 'p-2', 'border', 'border-gray-300', 'mb-2');
+        
+        const rangeInput = document.createElement('input');
+        rangeInput.type = 'range';
+        rangeInput.min = '20';
+        rangeInput.max = '20000';
+        rangeInput.value = value || '1000';
+        rangeInput.classList.add('w-full');
+        rangeInput.id = `frequencyRange${sliderCount}`;
+        
+        const valueDisplayId = `frequencyValue${sliderCount}`;
+        const valueDisplay = document.createElement('p');
+        valueDisplay.classList.add('mt-2');
+        valueDisplay.innerHTML = `Frequency: <span id="${valueDisplayId}">${rangeInput.value}</span> Hz`;
+        
+        rangeInput.addEventListener('input', function() {
+            document.getElementById(valueDisplayId).textContent = rangeInput.value;
+        });
+
+        sliderContainer.appendChild(nameLabel);
+        sliderContainer.appendChild(nameInput);
+        sliderContainer.appendChild(rangeInput);
+        sliderContainer.appendChild(valueDisplay);
+        
+        return sliderContainer;
+    }
+
+    document.getElementById('addSliderButton').addEventListener('click', function() {
+        const slidersContainer = document.getElementById('slidersContainer');
+        slidersContainer.appendChild(createSliderElement());
+        sliderCount++;
+    });
+
+    // Add the first slider by default
+    document.getElementById('slidersContainer').appendChild(createSliderElement());
+    sliderCount++;
+</script>
+{% endblock %}

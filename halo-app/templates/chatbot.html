@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-8 border border-gray-300">
+    <h1 class="text-2xl mb-4">Chat with Assistant</h1>
+    <div class="mb-4">
+        {% for message in conversation %}
+            <div class="mb-2">
+                <strong>{{ message.role }}:</strong>
+                <p>{{ message.content }}</p>
+            </div>
+        {% endfor %}
+    </div>
+    <form method="POST">
+        <div class="mb-4">
+            <label for="concern" class="block text-gray-700">Your message (type "end" to finish):</label>
+            <textarea id="concern" name="concern" class="w-full p-2 border border-gray-300" required></textarea>
+        </div>
+        <button type="submit" class="bg-blue-600 text-white p-2 w-full">Send</button>
+    </form>
+</div>
+{% endblock %}

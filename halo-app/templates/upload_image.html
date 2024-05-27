@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-4">Upload Images</h2>
+    <form id="uploadForm" action="{{ url_for('upload_image') }}" method="post" enctype="multipart/form-data">
+        <div id="sectionsContainer">
+            <!-- Sections will be added here dynamically -->
+        </div>
+        <button type="button" id="addSectionButton" class="mt-4 bg-blue-600 text-white p-2 rounded">Add Section</button>
+        <button type="submit" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-md">Upload</button>
+    </form>
+</div>
+
+<script>
+    let sectionCount = 0;
+
+    function createSectionElement() {
+        const sectionContainer = document.createElement('div');
+        sectionContainer.classList.add('mb-4', 'section-container');
+        sectionContainer.id = `section${sectionCount}`;
+
+        const categoryLabel = document.createElement('label');
+        categoryLabel.classList.add('block', 'text-gray-700');
+        categoryLabel.textContent = 'Category:';
+        
+        const categoryInput = document.createElement('input');
+        categoryInput.type = 'text';
+        categoryInput.name = `category_${sectionCount}`;
+        categoryInput.classList.add('w-full', 'p-2', 'border', 'border-gray-300', 'mb-2');
+
+        const objectNameLabel = document.createElement('label');
+        objectNameLabel.classList.add('block', 'text-gray-700');
+        objectNameLabel.textContent = 'Object Name:';
+
+        const objectNameInput = document.createElement('input');
+        objectNameInput.type = 'text';
+        objectNameInput.name = `object_name_${sectionCount}`;
+        objectNameInput.classList.add('w-full', 'p-2', 'border', 'border-gray-300', 'mb-2');
+
+        const coordinatesLabel = document.createElement('label');
+        coordinatesLabel.classList.add('block', 'text-gray-700');
+        coordinatesLabel.textContent = 'Corner Coordinates (x1, y1, x2, y2, x3,y3, x4, y4):';
+
+        const coordinatesInput = document.createElement('input');
+        coordinatesInput.type = 'text';
+        coordinatesInput.name = `coordinates_${sectionCount}`;
+        coordinatesInput.placeholder = 'e.g., 10,20,100,200, 100, 20, 200, 10';
+        coordinatesInput.classList.add('w-full', 'p-2', 'border', 'border-gray-300', 'mb-2');
+
+        const imagesLabel = document.createElement('label');
+        imagesLabel.classList.add('block', 'text-gray-700');
+        imagesLabel.textContent = 'Choose Images:';
+
+        const imagesInput = document.createElement('input');
+        imagesInput.type = 'file';
+        imagesInput.name = `images_${sectionCount}[]`;
+        imagesInput.multiple = true;
+        imagesInput.classList.add('w-full', 'border-gray-300', 'rounded-md');
+
+        sectionContainer.appendChild(categoryLabel);
+        sectionContainer.appendChild(categoryInput);
+        sectionContainer.appendChild(objectNameLabel);
+        sectionContainer.appendChild(objectNameInput);
+        sectionContainer.appendChild(coordinatesLabel);
+        sectionContainer.appendChild(coordinatesInput);
+        sectionContainer.appendChild(imagesLabel);
+        sectionContainer.appendChild(imagesInput);
+
+        return sectionContainer;
+    }
+
+    document.getElementById('addSectionButton').addEventListener('click', function() {
+        const sectionsContainer = document.getElementById('sectionsContainer');
+        sectionsContainer.appendChild(createSectionElement());
+        sectionCount++;
+    });
+
+    // Add the first section by default
+    document.getElementById('sectionsContainer').appendChild(createSectionElement());
+    sectionCount++;
+</script>
+{% endblock %}
